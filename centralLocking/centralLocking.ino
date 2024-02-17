@@ -1,24 +1,25 @@
 #include <Adafruit_Fingerprint.h>
-#if (defined(__AVR__) || defined(ESP8266)) && !defined(__AVR_ATmega2560__)
-SoftwareSerial mySerial(4, 5); //ESP8266 use (4 , 5)
-#else 
-#define mySerial Serial1 // (green , white)
-#endif
 
-Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
-int rFPS= 4; int rFPSStatus= 0;
-int rGn= 3;
-int rSw= 2;
-int rGnLine= 1;
+//for xiao (yellowTx>7&BrownRx>6) 
+#define mySerial Serial1
+Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial); 
+
+// relay for ignition
+int rIgnition= 4;
+//relays for central locking
+int rFPS= 3; 
+int rGn= 2;
+int rSw= 1;
+int rGnLine= 0;
 
 void setup() {
-  pinMode(rFPS, OUTPUT); digitalWrite(rFPS, LOW); 
+  pinMode(rIgnition, OUTPUT);  digitalWrite(rIgnition, LOW);
+  pinMode(rFPS, OUTPUT); digitalWrite(rFPS, LOW);
   pinMode(rGn, OUTPUT); digitalWrite(rGn, LOW);
   pinMode(rSw, OUTPUT); digitalWrite(rSw, LOW);
   pinMode(rGnLine, OUTPUT);  digitalWrite(rGnLine, LOW);
-  Serial1.begin(9600); //seeeduino xiao
-  //Serial.begin(115200); Serial2.begin(9600, SERIAL_8N1, 16, 17); //esp32 (rx,tx) 
-  while (!Serial); delay(100);  //or {;} instead of delay
+  Serial1.begin(9600); //for xiao
+  while (!Serial); delay(100);
   Serial.println("\n\nAdafruit finger detect test");
   finger.begin(57600); delay(5);
   if (finger.verifyPassword()) { 
@@ -30,9 +31,9 @@ void setup() {
       delay(1);
     } 
   }
-  Serial.println(F("identifying...")); //F() macro moves this stuff into FLASH instead of sRAM
+  Serial.println(F("identifying...")); //the F() macro function moves data into FLASH instead of sRAM
   finger.getParameters();
-  Serial.print(F("Status: 0x")); Serial.println(finger.status_reg, HEX); //bla bla bla
+  Serial.print(F("Status: 0x")); Serial.println(finger.status_reg, HEX);
   Serial.print(F("Sys ID: 0x")); Serial.println(finger.system_id, HEX);
   Serial.print(F("Capacity: ")); Serial.println(finger.capacity);
   Serial.print(F("Security level: ")); Serial.println(finger.security_level);
@@ -44,35 +45,55 @@ void setup() {
     Serial.print("no fingers, run (enroll) code"); 
   }
   else { 
-    Serial.print(" We got "); Serial.print(finger.templateCount); Serial.println(" prints on sensor"); 
+    Serial.print("******* We got "); Serial.print(finger.templateCount); Serial.println(" prints on sensor *******"); 
   } 
 }
 
 void loop() {
-  rFPSStatus = digitalRead(rFPS);
   getFingerprintID(); 
-  delay(50); // no need for full speed
+  delay(50); //no need for full speed
 }
 
-uint8_t getFingerprintID() {    //  byte = uint8_t = unsigned char  &  int8_t = char  
+uint8_t getFingerprintID() {    //byte = uint8_t = unsigned char
   uint8_t p = finger.getImage();
   switch (p) {
-    case FINGERPRINT_OK: Serial.println("Image taken"); break;
-    case FINGERPRINT_NOFINGER: return p;
-    case FINGERPRINT_PACKETRECIEVEERR: Serial.println("Communication error"); return p;
-    case FINGERPRINT_IMAGEFAIL: Serial.println("Imaging error"); return p;
-    default: Serial.println("Unknown error"); return p; 
+    case FINGERPRINT_OK: 
+      Serial.println("Image taken"); 
+      break;
+    case FINGERPRINT_NOFINGER: //No finger detected
+      return p;
+    case FINGERPRINT_PACKETRECIEVEERR: 
+      Serial.println("Communication error"); 
+      return p;
+    case FINGERPRINT_IMAGEFAIL: 
+      Serial.println("Imaging error"); 
+      return p;
+    default: 
+      Serial.println("Unknown error"); 
+      return p; 
   } 
   // ok success
-  p = finger.image2Tz();
+  p = finger.image2Tz();  
   switch (p) {
-    case FINGERPRINT_OK: Serial.println("Image converted"); break;
-    case FINGERPRINT_IMAGEMESS: Serial.println("Image too messy"); return p;
-    case FINGERPRINT_PACKETRECIEVEERR: Serial.println("Communication error"); return p;
-    case FINGERPRINT_FEATUREFAIL: Serial.println("Could not find fingerprint features"); return p;
-    case FINGERPRINT_INVALIDIMAGE: Serial.println("Could not find fingerprint features"); return p;
-    default: Serial.println("Unknown error"); return p; 
-  } 
+    case FINGERPRINT_OK:
+      Serial.println("Image converted");
+      break;
+    case FINGERPRINT_IMAGEMESS:
+      Serial.println("Image too messy");
+      return p;
+    case FINGERPRINT_PACKETRECIEVEERR:
+      Serial.println("Communication error");
+      return p;
+    case FINGERPRINT_FEATUREFAIL:
+      Serial.println("Could not find fingerprint features");
+      return p;
+    case FINGERPRINT_INVALIDIMAGE:
+      Serial.println("Could not find fingerprint features");
+      return p;
+    default:
+      Serial.println("Unknown error");
+      return p;
+  }
   // ok converted
   p = finger.fingerSearch();
   if (p == FINGERPRINT_OK) { 
@@ -80,29 +101,43 @@ uint8_t getFingerprintID() {    //  byte = uint8_t = unsigned char  &  int8_t = 
   } 
   else if (p == FINGERPRINT_PACKETRECIEVEERR) { 
     Serial.println("Communication error"); 
-    finger.LEDcontrol(FINGERPRINT_LED_FLASHING, 25, FINGERPRINT_LED_RED, 3); //(control, speed, coloridx, count); // try again, this time use your finger!
+    //the finger.LEDcontrol() function takes these parameters (control, speed, coloridx, count)
+    finger.LEDcontrol(FINGERPRINT_LED_FLASHING, 25, FINGERPRINT_LED_RED, 3); // try again, this time use your finger!
     return p; 
   } 
   else if (p == FINGERPRINT_NOTFOUND) { 
     Serial.println("no match"); 
-    finger.LEDcontrol(FINGERPRINT_LED_FLASHING, 25, FINGERPRINT_LED_RED, 3); // Let's put on a light show for the Thieves
+    finger.LEDcontrol(FINGERPRINT_LED_FLASHING, 25, FINGERPRINT_LED_RED, 3);  // Let's put on a light show for the Thieves.
     return p; 
   } 
   else { 
     Serial.println("Unknown error"); 
-    finger.LEDcontrol(FINGERPRINT_LED_FLASHING, 25, FINGERPRINT_LED_RED, 3); // the univerese , god, buddha, etc.. has intervined. (OMG particle)
+    finger.LEDcontrol(FINGERPRINT_LED_FLASHING, 25, FINGERPRINT_LED_RED, 3);// the univerese, god, buddha or OMG particle has intervined.
     return p; 
   } 
   // found a match
-  Serial.print("Found ID "); Serial.print(finger.fingerID);
-  Serial.print(" with confidence of "); Serial.println(finger.confidence);
-  finger.LEDcontrol(FINGERPRINT_LED_BREATHING, 50, FINGERPRINT_LED_BLUE, 1); //Blue means good??! I guess..
-  digitalWrite(rGn, HIGH); digitalWrite(rSw, HIGH); digitalWrite(rGnLine, HIGH); Serial.println("on");
-  delay(500);
-  int OnOff = 1-rFPSStatus;
-  digitalWrite(rFPS, OnOff); Serial.println("on/off");
-  delay(500);
-  digitalWrite(rGn, LOW); digitalWrite(rSw, LOW); digitalWrite(rGnLine, LOW); Serial.println("off");
+  Serial.print(" ID "); Serial.print(finger.fingerID);
+  Serial.print(", confidence "); Serial.println(finger.confidence);
+  if (finger.fingerID == 1 ) { // Tensor has two fingerprints stored on the fingerprint sensor and has full access to toggle the central locking and toggle the ignition.
+    finger.LEDcontrol(FINGERPRINT_LED_BREATHING, 15, FINGERPRINT_LED_BLUE, 1); // blue indicates full access granted.
+    //toggling the central locking
+    digitalWrite(rGn, HIGH); digitalWrite(rSw, HIGH); digitalWrite(rGnLine, HIGH); Serial.print("3 relays on, ");
+    delay(150);
+    digitalWrite(rFPS,!digitalRead(rFPS)); Serial.print("FPS relay toggled, ");    //int rFPSToggled = 1-rFPSStatus; digitalWrite(rFPS, rFPSToggled); 
+    delay(150);
+    digitalWrite(rGn, LOW); digitalWrite(rSw, LOW); digitalWrite(rGnLine, LOW); Serial.println("3 relays off.");
+    //toggling the ignition   
+    digitalWrite(rIgnition,!digitalRead(rIgnition)); Serial.println("Ignition relay toggled.");
+  }
+  if (finger.fingerID == 3 ) { // Carie has one fingerprint stored on the fingerprint sensor and is only allowed to toggle the central locking.
+    finger.LEDcontrol(FINGERPRINT_LED_BREATHING, 50, FINGERPRINT_LED_PURPLE, 1); // purple indiicates access granted to toggle the central locking.
+    //toggling the central locking
+    digitalWrite(rGn, HIGH); digitalWrite(rSw, HIGH); digitalWrite(rGnLine, HIGH); Serial.print("3 relays on, ");
+    delay(150);
+    digitalWrite(rFPS,!digitalRead(rFPS)); Serial.print("FPS relay toggled, ");    
+    delay(150);
+    digitalWrite(rGn, LOW); digitalWrite(rSw, LOW); digitalWrite(rGnLine, LOW); Serial.println("3 relays off.");
+  }
   return finger.fingerID; 
 }
 
