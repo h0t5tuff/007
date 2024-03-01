@@ -73,7 +73,7 @@ uint8_t getFingerprintID() {    //byte = uint8_t = unsigned char
   uint8_t p = finger.getImage();
   switch (p) {
     case FINGERPRINT_OK: 
-      Serial.println("Image taken"); 
+      //Serial.println("Image taken"); 
       break;
     case FINGERPRINT_NOFINGER: //No finger detected
       return p;
@@ -91,7 +91,7 @@ uint8_t getFingerprintID() {    //byte = uint8_t = unsigned char
   p = finger.image2Tz();  
   switch (p) {
     case FINGERPRINT_OK:
-      Serial.println("Image converted");
+      //Serial.println("Image converted");
       break;
     case FINGERPRINT_IMAGEMESS:
       Serial.println("Image too messy");
@@ -112,75 +112,84 @@ uint8_t getFingerprintID() {    //byte = uint8_t = unsigned char
   // ok converted
   p = finger.fingerSearch();
   if (p == FINGERPRINT_OK) { 
-    Serial.println("Found a print match!"); 
+    //Serial.println("Found a print match!"); 
     Serial.print(">>>>> ID "); Serial.print(finger.fingerID); Serial.print(", >>>>> confidence "); Serial.println(finger.confidence);
-    // Tensor and Carie have six fingerprints stored on the fingerprint sensor. Their fingers 1 and 2 have full access to toggle central locking, disarm and ignition.
+    // BLUE: Tensor and Carie have six fingerprints stored on the fingerprint sensor. Their fingers 1 and 2 have full access to toggle central locking, disarm and ignition.
     if (finger.fingerID >= 1 && finger.fingerID <= 2) { 
       finger.LEDcontrol(FINGERPRINT_LED_BREATHING, 20, FINGERPRINT_LED_BLUE, 1); // blue led indicates full access granted.
       rFPSstate = digitalRead(rFPS);
       // Toggle central locking, disarm, and ignition into "ON" status
       if (rFPSstate == LOW) {
-        digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); Serial.print("wires cut. ");
+        digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); //Serial.print("wires cut. ");
         delay(500);
-        digitalWrite(rFPS,HIGH); digitalWrite(rDisarm,HIGH); Serial.print("Disarm and FPS on. ");  
-        digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); Serial.print("wires connected. "); 
+        digitalWrite(rFPS,HIGH); digitalWrite(rDisarm,HIGH);  
+        digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.print("wires connected. "); 
         delay(10);
-        digitalWrite(rIgnition, HIGH); delay(100); digitalWrite(rIgnition, LOW); delay(100);
-        digitalWrite(rIgnition, HIGH); delay(100); digitalWrite(rIgnition, LOW); delay(100);
-        digitalWrite(rBrake, HIGH); delay(10); digitalWrite(rIgnition, HIGH); delay(100); digitalWrite(rIgnition, LOW); digitalWrite(rBrake, LOW);
-        Serial.println("Ignition.");
+        digitalWrite(rIgnition, HIGH); delay(500); digitalWrite(rIgnition, LOW); delay(500);
+        digitalWrite(rIgnition, HIGH); delay(500); digitalWrite(rIgnition, LOW); delay(500);
+        digitalWrite(rBrake, HIGH); delay(500); digitalWrite(rIgnition, HIGH); delay(400); digitalWrite(rIgnition, LOW); delay(500); digitalWrite(rBrake, LOW);
+        delay(10);
+        Serial.println(" *** Adventure *** "); 
       }
       // Toggle central locking and disarm into "OFF" status
       else if (rFPSstate == HIGH) {
-        digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); Serial.print("wires cut. ");
+        digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); //Serial.print("wires cut. ");
         delay(500);
-        digitalWrite(rFPS,LOW); digitalWrite(rDisarm,LOW); Serial.print("Disarm and FPS off. ");  
-        digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); Serial.println("wires connected."); 
+        digitalWrite(rFPS,LOW); digitalWrite(rDisarm,LOW); 
+        digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.println("wires connected."); 
         delay(10);
+        Serial.println(" *** armed and locked *** ");  
       }
    }
-    // Tensor and Carie have six fingerprints stored on the fingerprint sensor. Their fingers 3 to 4 can toggle the central locking and disarm.
-    if (finger.fingerID >= 3 && finger.fingerID <= 4) { 
+  
+    // GREEN: Tensor and Carie have six fingerprints stored on the fingerprint sensor. Their fingers 3 to 4 can toggle the central locking and disarm.
+    else if (finger.fingerID >= 3 && finger.fingerID <= 4) { 
       finger.LEDcontrol(FINGERPRINT_LED_BREATHING, 40, FINGERPRINT_LED_GREEN, 1); // blue indicates full access granted.
       rFPSstate = digitalRead(rFPS);
       // Toggle central locking and disarm into "ON" status
       if (rFPSstate == LOW) {
-        digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); Serial.print("wires cut. ");
+        digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); //Serial.print("wires cut. ");
         delay(500);
-        digitalWrite(rFPS,HIGH); digitalWrite(rDisarm,HIGH); Serial.print("Disarm and FPS on. ");  
-        digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); Serial.print("wires connected. "); 
+        digitalWrite(rFPS,HIGH); digitalWrite(rDisarm,HIGH); 
+        digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.println("wires connected. "); 
         delay(10);
+        Serial.println(" unlocked, engine with push button and disarmed");  
       }
       // Toggle central locking and disarm into "OFF" status
       else if (rFPSstate == HIGH) {
-        digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); Serial.print("wires cut. ");
+        digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); //Serial.print("wires cut. ");
         delay(500);
-        digitalWrite(rFPS,LOW); digitalWrite(rDisarm,LOW); Serial.print("Disarm and FPS off. ");  
-        digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); Serial.println("wires connected."); 
+        digitalWrite(rFPS,LOW); digitalWrite(rDisarm,HIGH); 
+        digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.println("wires connected."); 
         delay(10);
+        Serial.println(" locked, engine is running and disarmed");  
       }
     }
+  
     // all other fingerprint stored on the fingerprint sensor are only allowed to toggle the central locking.
     else { 
       finger.LEDcontrol(FINGERPRINT_LED_BREATHING, 50, FINGERPRINT_LED_PURPLE, 1); // purple indiicates access granted to toggle the central locking.
       rFPSstate = digitalRead(rFPS);
       // Toggle central locking into "ON" status
       if (rFPSstate == LOW) {
-        digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); Serial.print("wires cut. ");
+        digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); //Serial.print("wires cut. ");
         delay(500);
-        digitalWrite(rFPS,HIGH); Serial.print("FPS on. ");  
-        digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); Serial.print("wires connected. "); 
+        digitalWrite(rFPS,HIGH); digitalWrite(rDisarm,LOW); 
+        digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.println("wires connected. "); 
         delay(10);
+        Serial.println(" *** armed and unlocked ^_^ *** ");  
       }
-      // Toggle central locking into "OFF" status
+      // Toggle central locking and disarm into "OFF" status
       else if (rFPSstate == HIGH) {
-        digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); Serial.print("wires cut. ");
+        digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); //Serial.print("wires cut. ");
         delay(500);
-        digitalWrite(rFPS,LOW); Serial.print("FPS off. ");  
-        digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); Serial.println("wires connected."); 
+        digitalWrite(rFPS,LOW); digitalWrite(rDisarm,LOW);
+        digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.println("wires connected."); 
         delay(10);
+        Serial.println(" *** armed and locked -_- *** ");  
       }
     }
+    
   }
   else if (p == FINGERPRINT_PACKETRECIEVEERR) { 
     Serial.println("Communication error"); 
