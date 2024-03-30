@@ -11,15 +11,18 @@ int rFPS= D4; // b1
 bool rFPSstate= HIGH;
 // relay for disarm
 int rDisarm= D5; //b2
+bool rDisarmstate= HIGH;
 // relays for ignition
 int rIgnition= D8; //b3
 int rBrake= D9; //b4
+// siri 
+int siriLED= D10;
 
-struct DEV_LED : Service::LightBulb {               // First we create a derived class from the HomeSpan LightBulb Service
+struct SIRI_LED : Service::LightBulb {               // First we create a derived class from the HomeSpan LightBulb Service
   int ledPin;                                       // this variable stores the pin number defined for this LED
   //////////////setup///////////////////////////////////
   SpanCharacteristic *power;                        // here we create a generic pointer to a SpanCharacteristic named "power" that we will use below
-  DEV_LED(int ledPin) : Service::LightBulb(){
+  SIRI_LED(int ledPin) : Service::LightBulb(){
     power=new Characteristic::On();                 // this is where we create the On Characterstic we had previously defined in setup().  Save this in the pointer created above, for use below
     this->ledPin=ledPin;                            // don't forget to store ledPin...
     pinMode(ledPin,OUTPUT);                         // ...and set the mode for ledPin to be an OUTPUT (standard Arduino function)
@@ -27,27 +30,22 @@ struct DEV_LED : Service::LightBulb {               // First we create a derived
   ////////////////loop///////////////////////////////////
   boolean update(){   // Finally, we over-ride the default update() method with instructions that actually turn on/off the LED.  Note update() returns type boolean  
     digitalWrite(ledPin,power->getNewVal());        // use a standard Arduino function to turn on/off ledPin based on the return of a call to power->getNewVal() (see below for more info)
-    rFPSstate = digitalRead(rFPS);
-    // Toggle central locking, disarm, and ignition into "ON" status
-    if (rFPSstate == LOW) {
-      digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); //Serial.print("wires cut. ");
-      delay(500);
-      digitalWrite(rFPS,HIGH); digitalWrite(rDisarm,HIGH);  
-      digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.print("wires connected. "); 
+    rDisarmstate = digitalRead(rDisarm);
+    // Toggle disarm, and ignition into "ON" status
+    if (rDisarmstate == LOW) {
+      digitalWrite(rDisarm,HIGH);  
       delay(10);
       digitalWrite(rIgnition, HIGH); delay(500); digitalWrite(rIgnition, LOW); delay(500);
       digitalWrite(rIgnition, HIGH); delay(500); digitalWrite(rIgnition, LOW); delay(500);
-      digitalWrite(rBrake, HIGH); delay(500); digitalWrite(rIgnition, HIGH); delay(600); digitalWrite(rIgnition, LOW); delay(500); digitalWrite(rBrake, LOW);
+      digitalWrite(rBrake, HIGH); delay(2000); digitalWrite(rIgnition, HIGH); delay(450); digitalWrite(rIgnition, LOW); delay(2000); digitalWrite(rBrake, LOW);
       delay(10);
-      Serial.println(" *** ADVENTURE *** "); 
+      Serial.println(" locked, Ignition ON "); 
     }
-    // Toggle central locking and disarm into "OFF" status
-    else if (rFPSstate == HIGH) {
-      digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); //Serial.print("wires cut. ");
-      delay(500);
-      digitalWrite(rFPS,LOW); digitalWrite(rDisarm,LOW); 
-      digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.println("wires connected."); 
+    // Toggle disarm, and ignition into "OFF" status
+    else if (rDisarmstate == HIGH) {
+      digitalWrite(rBrake, HIGH); delay(2000); digitalWrite(rIgnition, HIGH); delay(450); digitalWrite(rIgnition, LOW); delay(2000); digitalWrite(rBrake, LOW);
       delay(10);
+      digitalWrite(rDisarm,LOW);  
       Serial.println(" *** SECURE *** ");  
     }
     return(true);      // return true to indicate the update was successful (otherwise create code to return false if some reason you could not turn on the LED)
@@ -65,16 +63,18 @@ void setup() {
   pinMode(rSw, OUTPUT); digitalWrite(rSw, LOW);
   pinMode(rFPS, OUTPUT); digitalWrite(rFPS, rFPSstate);
   //outputs for disarm
-  pinMode(rDisarm, OUTPUT); digitalWrite(rDisarm, HIGH);
+  pinMode(rDisarm, OUTPUT); digitalWrite(rDisarm, rDisarmstate);
   //outputs for ignition
   pinMode(rIgnition, OUTPUT); digitalWrite(rIgnition, LOW);
   pinMode(rBrake, OUTPUT); digitalWrite(rBrake, LOW);
   Serial.begin(115200); // fast and reliable speed
+  
   homeSpan.begin(Category::Lighting,"007"); //apple homekit stuff
   new SpanAccessory(); 
     new Service::AccessoryInformation(); 
       new Characteristic::Identify();                
-    new DEV_LED(D10);
+    new SIRI_LED(siriLED);
+  
   Serial.println("\n\nAdafruit finger detect test"); //fingerprint stuff
   finger.begin(57600); delay(5);
   if (finger.verifyPassword()) { 
@@ -170,7 +170,7 @@ uint8_t getFingerprintID() {    //byte = uint8_t = unsigned char
         delay(10);
         digitalWrite(rIgnition, HIGH); delay(500); digitalWrite(rIgnition, LOW); delay(500);
         digitalWrite(rIgnition, HIGH); delay(500); digitalWrite(rIgnition, LOW); delay(500);
-        digitalWrite(rBrake, HIGH); delay(500); digitalWrite(rIgnition, HIGH); delay(600); digitalWrite(rIgnition, LOW); delay(500); digitalWrite(rBrake, LOW);
+        digitalWrite(rBrake, HIGH); delay(2000); digitalWrite(rIgnition, HIGH); delay(450); digitalWrite(rIgnition, LOW); delay(2000); digitalWrite(rBrake, LOW);
         delay(10);
         Serial.println(" *** ADVENTURE *** "); 
       }
@@ -195,7 +195,7 @@ uint8_t getFingerprintID() {    //byte = uint8_t = unsigned char
         digitalWrite(rFPS,HIGH); digitalWrite(rDisarm,HIGH); 
         digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.println("wires connected. "); 
         delay(10);
-        Serial.println(" unlocked, engine disarmed ");  
+        Serial.println(" unlocked, Disarmed ");  
       }
       // Toggle central locking into "OFF" status
       else if (rFPSstate == HIGH) {
@@ -204,7 +204,7 @@ uint8_t getFingerprintID() {    //byte = uint8_t = unsigned char
         digitalWrite(rFPS,LOW); digitalWrite(rDisarm,HIGH); 
         digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.println("wires connected."); 
         delay(10);
-        Serial.println(" locked, engine disarmed ");  
+        Serial.println(" locked, Disarmed ");  
       }
     }
     // all other fingerprint stored on the fingerprint sensor are only allowed to toggle the central locking.
@@ -218,7 +218,7 @@ uint8_t getFingerprintID() {    //byte = uint8_t = unsigned char
         digitalWrite(rFPS,HIGH); digitalWrite(rDisarm,LOW); 
         digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.println("wires connected. "); 
         delay(10);
-        Serial.println(" *** unlocked, engine armed ^_^ *** ");  
+        Serial.println(" *** unlocked, armed ^_^ *** ");  
       }
       // Toggle central locking and disarm into "OFF" status
       else if (rFPSstate == HIGH) {
@@ -227,7 +227,7 @@ uint8_t getFingerprintID() {    //byte = uint8_t = unsigned char
         digitalWrite(rFPS,LOW); digitalWrite(rDisarm,LOW);
         digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.println("wires connected."); 
         delay(10);
-        Serial.println(" *** locked, engine armed -_- *** ");  
+        Serial.println(" *** locked, armed -_- *** ");  
       }
     }
   }
