@@ -14,42 +14,40 @@ int rDisarm= D5; //b2
 bool rDisarmstate= HIGH;
 // relays for ignition
 int rIgnition= D8; //b3
-int rBrake= D9; //b4
-// siri 
-int siriLED= D10;
+int rBrake= D10; //b4
+// homekit
+int siri= D9;
 
-struct SIRI_LED : Service::LightBulb {               // First we create a derived class from the HomeSpan LightBulb Service
-  int ledPin;                                       // this variable stores the pin number defined for this LED
-  //////////////setup///////////////////////////////////
-  SpanCharacteristic *power;                        // here we create a generic pointer to a SpanCharacteristic named "power" that we will use below
-  SIRI_LED(int ledPin) : Service::LightBulb(){
-    power=new Characteristic::On();                 // this is where we create the On Characterstic we had previously defined in setup().  Save this in the pointer created above, for use below
-    this->ledPin=ledPin;                            // don't forget to store ledPin...
-    pinMode(ledPin,OUTPUT);                         // ...and set the mode for ledPin to be an OUTPUT (standard Arduino function)
-  } // end constructor
-  ////////////////loop///////////////////////////////////
-  boolean update(){   // Finally, we over-ride the default update() method with instructions that actually turn on/off the LED.  Note update() returns type boolean  
-    digitalWrite(ledPin,power->getNewVal());        // use a standard Arduino function to turn on/off ledPin based on the return of a call to power->getNewVal() (see below for more info)
+struct DEV_IGNITION : Service::LightBulb {       
+  int ledPin;               
+  SpanCharacteristic *power;                   
+  // constructor:
+  DEV_IGNITION(int ledPin) : Service::LightBulb(){
+    power=new Characteristic::On();             
+    this->ledPin=ledPin;                 
+    pinMode(ledPin,OUTPUT);     
+  }
+  // update:
+  boolean update(){  
+    digitalWrite(ledPin,power->getNewVal());  
     rDisarmstate = digitalRead(rDisarm);
-    // Toggle disarm, and ignition into "ON" status
     if (rDisarmstate == LOW) {
-      digitalWrite(rDisarm,HIGH);  
+      digitalWrite(rDisarm,HIGH); digitalWrite(rFPS,LOW);  
       delay(10);
       digitalWrite(rIgnition, HIGH); delay(500); digitalWrite(rIgnition, LOW); delay(500);
       digitalWrite(rIgnition, HIGH); delay(500); digitalWrite(rIgnition, LOW); delay(500);
       digitalWrite(rBrake, HIGH); delay(2000); digitalWrite(rIgnition, HIGH); delay(450); digitalWrite(rIgnition, LOW); delay(2000); digitalWrite(rBrake, LOW);
       delay(10);
-      Serial.println(" locked, Ignition ON "); 
+      Serial.println(" Locked, Disarmed > Ignition "); 
     }
-    // Toggle disarm, and ignition into "OFF" status
     else if (rDisarmstate == HIGH) {
       digitalWrite(rBrake, HIGH); delay(2000); digitalWrite(rIgnition, HIGH); delay(450); digitalWrite(rIgnition, LOW); delay(2000); digitalWrite(rBrake, LOW);
       delay(10);
-      digitalWrite(rDisarm,LOW);  
+      digitalWrite(rDisarm,LOW); digitalWrite(rFPS,LOW);  
       Serial.println(" *** SECURE *** ");  
     }
-    return(true);      // return true to indicate the update was successful (otherwise create code to return false if some reason you could not turn on the LED)
-  } // update
+    return(true);   
+  }
 };
 
 Adafruit_Fingerprint finger = Adafruit_Fingerprint(&Serial0); //Serial1 on xiao(7,6) Serial0 on xiaoesp32c3(7,6) and Serial2 on esp32(16,17)
@@ -68,13 +66,22 @@ void setup() {
   pinMode(rIgnition, OUTPUT); digitalWrite(rIgnition, LOW);
   pinMode(rBrake, OUTPUT); digitalWrite(rBrake, LOW);
   Serial.begin(115200); // fast and reliable speed
-  
-  homeSpan.begin(Category::Lighting,"007"); //apple homekit stuff
+  homeSpan.enableOTA();
+  homeSpan.begin(Category::Bridges,"007 Bridge");
+  //homeSpan.enableWebLog(); // http://homespan-19ad214bea32.local/status
+  new SpanAccessory();  
+    new Service::AccessoryInformation();
+      new Characteristic::Identify(); 
+      new Characteristic::Name("007 Bridge");  
+      new Characteristic::Manufacturer("Tensor"); 
+      new Characteristic::SerialNumber("x");   
+      new Characteristic::Model("x");    
+      new Characteristic::FirmwareRevision("1"); 
   new SpanAccessory(); 
     new Service::AccessoryInformation(); 
-      new Characteristic::Identify();                
-    new SIRI_LED(siriLED);
-  
+      new Characteristic::Identify();      
+      new Characteristic::Name("007Led");
+    new DEV_IGNITION(siri);
   Serial.println("\n\nAdafruit finger detect test"); //fingerprint stuff
   finger.begin(57600); delay(5);
   if (finger.verifyPassword()) { 
@@ -157,11 +164,10 @@ uint8_t getFingerprintID() {    //byte = uint8_t = unsigned char
   if (p == FINGERPRINT_OK) { 
     //Serial.println("Found a print match!"); 
     Serial.print(">>>>> ID "); Serial.print(finger.fingerID); Serial.print(", >>>>> confidence "); Serial.println(finger.confidence);
-    // BLUE: Tensor and Carie have six fingerprints stored on the fingerprint sensor. Their fingers 1 and 2 have full access to toggle central locking, disarm and ignition.
+    // B.L.U.E.: Tensor and Carie have six fingerprints stored on the fingerprint sensor. Their fingers 1 and 4 have full access to toggle central locking, disarm and ignition.
     if (finger.fingerID >= 1 && finger.fingerID <= 4) { 
       finger.LEDcontrol(FINGERPRINT_LED_BREATHING, 20, FINGERPRINT_LED_BLUE, 1); // blue led indicates full access granted.
       rFPSstate = digitalRead(rFPS);
-      // Toggle central locking, disarm, and ignition into "ON" status
       if (rFPSstate == LOW) {
         digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); //Serial.print("wires cut. ");
         delay(500);
@@ -172,9 +178,8 @@ uint8_t getFingerprintID() {    //byte = uint8_t = unsigned char
         digitalWrite(rIgnition, HIGH); delay(500); digitalWrite(rIgnition, LOW); delay(500);
         digitalWrite(rBrake, HIGH); delay(2000); digitalWrite(rIgnition, HIGH); delay(450); digitalWrite(rIgnition, LOW); delay(2000); digitalWrite(rBrake, LOW);
         delay(10);
-        Serial.println(" *** ADVENTURE *** "); 
+        Serial.println(" *** ADVENTURE *** "); //Unlocked, Disarmed > Ignition
       }
-      // Toggle central locking and disarm into "OFF" status
       else if (rFPSstate == HIGH) {
         digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); //Serial.print("wires cut. ");
         delay(500);
@@ -184,50 +189,46 @@ uint8_t getFingerprintID() {    //byte = uint8_t = unsigned char
         Serial.println(" *** SECURE *** ");  
       }
    }
-    // GREEN: Tensor and Carie have six fingerprints stored on the fingerprint sensor. Their fingers 3 to 4 can toggle the central locking and disarm.
+    // G.R.E.E.N.: Tensor and Carie have six fingerprints stored on the fingerprint sensor. Their fingers 5 to 8 can toggle the central locking and disarm.
     else if (finger.fingerID >= 5 && finger.fingerID <= 8) { 
       finger.LEDcontrol(FINGERPRINT_LED_BREATHING, 40, FINGERPRINT_LED_GREEN, 1); // blue indicates full access granted.
       rFPSstate = digitalRead(rFPS);
-      // Toggle central locking and disarm into "ON" status
       if (rFPSstate == LOW) {
         digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); //Serial.print("wires cut. ");
         delay(500);
         digitalWrite(rFPS,HIGH); digitalWrite(rDisarm,HIGH); 
         digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.println("wires connected. "); 
         delay(10);
-        Serial.println(" unlocked, Disarmed ");  
+        Serial.println(" Unlocked, Disarmed ");  
       }
-      // Toggle central locking into "OFF" status
       else if (rFPSstate == HIGH) {
         digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); //Serial.print("wires cut. ");
         delay(500);
-        digitalWrite(rFPS,LOW); digitalWrite(rDisarm,HIGH); 
+        digitalWrite(rFPS,LOW); digitalWrite(rDisarm,LOW); 
         digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.println("wires connected."); 
         delay(10);
-        Serial.println(" locked, Disarmed ");  
+        Serial.println(" *** SECURE *** ");  
       }
     }
-    // all other fingerprint stored on the fingerprint sensor are only allowed to toggle the central locking.
+    // A.L.L. other fingerprint stored on the fingerprint sensor are only allowed to toggle the central locking.
     else { 
       finger.LEDcontrol(FINGERPRINT_LED_BREATHING, 50, FINGERPRINT_LED_PURPLE, 1); // purple indiicates access granted to toggle the central locking.
       rFPSstate = digitalRead(rFPS);
-      // Toggle central locking into "ON" status
       if (rFPSstate == LOW) {
         digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); //Serial.print("wires cut. ");
         delay(500);
         digitalWrite(rFPS,HIGH); digitalWrite(rDisarm,LOW); 
         digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.println("wires connected. "); 
         delay(10);
-        Serial.println(" *** unlocked, armed ^_^ *** ");  
+        Serial.println(" Unlocked, Armed ^_^ ");  
       }
-      // Toggle central locking and disarm into "OFF" status
       else if (rFPSstate == HIGH) {
         digitalWrite(rGnln, HIGH); digitalWrite(rGn, HIGH); digitalWrite(rSwln, HIGH); digitalWrite(rSw, HIGH); //Serial.print("wires cut. ");
         delay(500);
-        digitalWrite(rFPS,LOW); digitalWrite(rDisarm,LOW);
+        digitalWrite(rFPS,LOW); digitalWrite(rDisarm,LOW); 
         digitalWrite(rGnln, LOW); digitalWrite(rGn, LOW); digitalWrite(rSwln, LOW); digitalWrite(rSw, LOW); //Serial.println("wires connected."); 
         delay(10);
-        Serial.println(" *** locked, armed -_- *** ");  
+        Serial.println(" *** SECURE *** ");  
       }
     }
   }
