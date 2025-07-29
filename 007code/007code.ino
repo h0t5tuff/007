@@ -248,8 +248,8 @@ uint8_t getFingerprintID() {    //byte = uint8_t = unsigned char
     finger.LEDcontrol(FINGERPRINT_LED_FLASHING, 25, FINGERPRINT_LED_RED, 3);// the univerese, god, buddha or OMG particle has intervined.
     return p; 
   } 
+  Serial.println("----------------------    hmmmmmm    -------------------------");
   return finger.fingerID; 
-  Serial.println("----------------------    hmmmmmm    ---------------------------"); 
 }
 
 /////////////////////// getFingerprintIDez ///////////////////////////////////
@@ -264,5 +264,6 @@ int getFingerprintIDez() {
   // found a match!
   Serial.print("Found ID #"); Serial.print(finger.fingerID);
   Serial.print(" with the confidence "); Serial.println(finger.confidence);
+  Serial.println("----------------------    hmmmmmm    -------------------------");
   return finger.fingerID; 
 }
